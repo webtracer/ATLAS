@@ -1,0 +1,417 @@
+@page "/servers"
+@using System.Net.Http.Json
+@using Amdocs.Atlas.Core.Entities
+@using Environment = Amdocs.Atlas.Core.Entities.Environment
+@inject IHttpClientFactory HttpClientFactory
+
+<h3>Servers</h3>
+
+<p><strong>Debug:</strong> isCreating = @isCreating, isEditing = @isEditing</p>
+
+@if (isLoading)
+{
+    <p>Loading servers...</p>
+}
+else if (!string.IsNullOrEmpty(loadError))
+{
+    <div class="alert alert-danger">
+        Error loading servers: @loadError
+    </div>
+}
+else
+{
+    <button type="button"
+            class="btn btn-primary mb-3"
+            @onclick="StartCreate">
+        Add Server
+    </button>
+
+    @if (servers.Count == 0)
+    {
+        <p>No servers found.</p>
+    }
+    else
+    {
+        <table class="table table-striped table-sm">
+            <thead>
+            <tr>
+                <th>Id</th>
+                <th>Hostname</th>
+                <th>IP</th>
+                <th>EnvironmentId</th>
+                <th>RoleId</th>
+                <th>CustomerId</th>
+                <th>Active</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var server in servers)
+            {
+                <tr>
+                    <td>@server.ServerId</td>
+                    <td>@server.Hostname</td>
+                    <td>@server.IpAddress</td>
+                    <td>@GetEnvironmentName(server.EnvironmentId)</td>
+                    <td>@GetRoleName(server.RoleId)</td>
+                    <td>@GetCustomerName(server.CustomerId)</td>
+                    <td>@(server.IsActive ? "Yes" : "No")</td>
+                    <td>
+                        <button type="button"
+                                class="btn btn-sm btn-secondary me-1"
+                                @onclick="() => StartEdit(server)">
+                            Edit
+                        </button>
+                        <button type="button"
+                                class="btn btn-sm btn-danger"
+                                @onclick="() => AskDelete(server)">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+
+    @if (isCreating || isEditing)
+    {
+        <div class="card mt-4">
+            <div class="card-header">
+                @(isCreating ? "Add Server" : "Edit Server")
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Hostname</label>
+                    <input class="form-control" @bind="editModel.Hostname" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">IP Address</label>
+                    <input class="form-control" @bind="editModel.IpAddress" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Environment</label>
+                    <select class="form-select" @bind="editModel.EnvironmentId">
+                        <option value="0">-- Select Environment --</option>
+                        @foreach (var env in environments)
+                        {
+                            <option value="@env.EnvironmentId">@env.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Role</label>
+                    <select class="form-select" @bind="editModel.RoleId">
+                        <option value="0">-- Select Role --</option>
+                        @foreach (var role in roles)
+                        {
+                            <option value="@role.RoleId">@role.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Customer</label>
+                    <select class="form-select" @bind="editModel.CustomerId">
+                        <option value="">-- None --</option>
+                        @foreach (var customer in customers)
+                        {
+                            <option value="@customer.CustomerId">@customer.Name</option>
+                        }
+                    </select>
+                </div>
+
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           id="isActiveCheck"
+                           @bind="editModel.IsActive" />
+                    <label class="form-check-label" for="isActiveCheck">
+                        Active
+                    </label>
+                </div>
+
+                <button type="button"
+                        class="btn btn-primary me-2"
+                        @onclick="SaveAsync">
+                    Save
+                </button>
+                <button type="button"
+                        class="btn btn-secondary"
+                        @onclick="CancelEdit">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (deleteCandidate is not null)
+    {
+        <div class="alert alert-warning mt-4">
+            <p>
+                Are you sure you want to delete server
+                <strong>@deleteCandidate.Hostname</strong> (Id: @deleteCandidate.ServerId)?
+            </p>
+            <button type="button"
+                    class="btn btn-danger me-2"
+                    @onclick="ConfirmDeleteAsync">
+                Yes, delete
+            </button>
+            <button type="button"
+                    class="btn btn-secondary"
+                    @onclick="CancelDelete">
+                Cancel
+            </button>
+        </div>
+    }
+}
+
+@code {
+    private List<Server> servers = new();
+    private bool isLoading = true;
+    private string? loadError;
+
+    private bool isCreating;
+    private bool isEditing;
+    private Server editModel = new();
+
+    private Server? deleteCandidate;
+    
+    private List<Environment> environments = new();
+    private List<Role> roles = new();
+    private List<Customer> customers = new();
+
+    private string GetEnvironmentName(int environmentId) =>
+        environments.FirstOrDefault(e => e.EnvironmentId == environmentId)?.Name
+        ?? environmentId.ToString();
+
+    private string GetRoleName(int roleId) =>
+        roles.FirstOrDefault(r => r.RoleId == roleId)?.Name
+        ?? roleId.ToString();
+
+    private string GetCustomerName(int? customerId) =>
+        customerId is null
+            ? string.Empty
+            : customers.FirstOrDefault(c => c.CustomerId == customerId)?.Name
+              ?? customerId.Value.ToString();
+
+
+    /*protected override async Task OnInitializedAsync()
+    {
+        await LoadServersAsync();
+    }*/
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLookupsAsync();
+        await LoadServersAsync();
+    }
+
+    private async Task LoadLookupsAsync()
+    {
+        try
+        {
+            var client = CreateClient();
+
+            var envResult = await client.GetFromJsonAsync<List<Environment>>("api/environments");
+            environments = envResult ?? new List<Environment>();
+
+            var roleResult = await client.GetFromJsonAsync<List<Role>>("api/roles");
+            roles = roleResult ?? new List<Role>();
+
+            var customerResult = await client.GetFromJsonAsync<List<Customer>>("api/customers");
+            customers = customerResult ?? new List<Customer>();
+        }
+        catch (Exception ex)
+        {
+            // Don’t block the whole page, but log the error
+            loadError = $"Failed to load lookups: {ex.Message}";
+        }
+    }
+    
+    private HttpClient CreateClient() => HttpClientFactory.CreateClient("AtlasApi");
+
+    private async Task LoadServersAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        try
+        {
+            var client = CreateClient();
+            var result = await client.GetFromJsonAsync<List<Server>>("api/servers");
+            servers = result ?? new List<Server>();
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void StartCreate()
+    {
+        isCreating = true;
+        isEditing = false;
+        deleteCandidate = null;
+
+        editModel = new Server
+        {
+            IsActive = true,
+            IsVm = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        StateHasChanged();
+    }
+
+    private void StartEdit(Server server)
+    {
+        isEditing = true;
+        isCreating = false;
+        deleteCandidate = null;
+
+        editModel = new Server
+        {
+            ServerId          = server.ServerId,
+            Hostname          = server.Hostname,
+            Fqdn              = server.Fqdn,
+            IpAddress         = server.IpAddress,
+            SecondaryIp       = server.SecondaryIp,
+            OsName            = server.OsName,
+            OsFamily          = server.OsFamily,
+            OsMajorVersion    = server.OsMajorVersion,
+            IsVm              = server.IsVm,
+            SourceType        = server.SourceType,
+            VmInstanceUuid    = server.VmInstanceUuid,
+            VmBiosUuid        = server.VmBiosUuid,
+            IsActive          = server.IsActive,
+            LifecycleStatus   = server.LifecycleStatus,
+            CreatedAt         = server.CreatedAt,
+            UpdatedAt         = server.UpdatedAt,
+            CommissionedAt    = server.CommissionedAt,
+            DecommissionedAt  = server.DecommissionedAt,
+            EnvironmentId     = server.EnvironmentId,
+            RoleId            = server.RoleId,
+            OwnerId           = server.OwnerId,
+            LocationId        = server.LocationId,
+            CustomerId        = server.CustomerId,
+            VcenterId         = server.VcenterId,
+            ProjectId         = server.ProjectId
+        };
+    }
+
+    /*private async Task SaveAsync()
+    {
+        try
+        {
+            var client = CreateClient();
+
+            if (isCreating)
+            {
+                var response = await client.PostAsJsonAsync("api/servers", editModel);
+                response.EnsureSuccessStatusCode();
+            }
+            else if (isEditing)
+            {
+                var response = await client.PutAsJsonAsync($"api/servers/{editModel.ServerId}", editModel);
+                response.EnsureSuccessStatusCode();
+            }
+
+            isCreating = false;
+            isEditing = false;
+            editModel = new Server();
+
+            await LoadServersAsync();
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
+    }*/
+    private async Task SaveAsync()
+    {
+        try
+        {
+            var client = CreateClient();
+            HttpResponseMessage response;
+
+            if (isCreating)
+            {
+                response = await client.PostAsJsonAsync("api/servers", editModel);
+            }
+            else if (isEditing)
+            {
+                response = await client.PutAsJsonAsync($"api/servers/{editModel.ServerId}", editModel);
+            }
+            else
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                loadError = $"Save failed ({(int)response.StatusCode} {response.StatusCode}): {content}";
+                return;
+            }
+
+            isCreating = false;
+            isEditing = false;
+            editModel = new Server();
+
+            await LoadServersAsync();
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        isCreating = false;
+        isEditing = false;
+        editModel = new Server();
+    }
+
+    private void AskDelete(Server server)
+    {
+        deleteCandidate = server;
+        isCreating = false;
+        isEditing = false;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (deleteCandidate is null)
+            return;
+
+        try
+        {
+            var client = CreateClient();
+            var response = await client.DeleteAsync($"api/servers/{deleteCandidate.ServerId}");
+            response.EnsureSuccessStatusCode();
+
+            deleteCandidate = null;
+            await LoadServersAsync();
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
+    }
+
+    private void CancelDelete()
+    {
+        deleteCandidate = null;
+    }
+}

@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amdocs.Atlas.Core", "Amdocs.Atlas.Core\Amdocs.Atlas.Core.csproj", "{D2651E0D-D36B-4EFA-A2F9-C7F731914022}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amdocs.Atlas.Data", "Amdocs.Atlas.Data\Amdocs.Atlas.Data.csproj", "{4899E3C8-AD93-4CFD-9EE3-7A7A1226C945}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amdocs.Atlas.Api", "Amdocs.Atlas.Api\Amdocs.Atlas.Api.csproj", "{75ED4AA2-E3BB-4AA2-B5D6-1B566C695D36}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amdocs.Atlas.Web", "Amdocs.Atlas.Web\Amdocs.Atlas.Web.csproj", "{E7502FD7-C875-4DC8-B107-CD3538B646F9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D2651E0D-D36B-4EFA-A2F9-C7F731914022}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D2651E0D-D36B-4EFA-A2F9-C7F731914022}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D2651E0D-D36B-4EFA-A2F9-C7F731914022}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D2651E0D-D36B-4EFA-A2F9-C7F731914022}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4899E3C8-AD93-4CFD-9EE3-7A7A1226C945}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4899E3C8-AD93-4CFD-9EE3-7A7A1226C945}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4899E3C8-AD93-4CFD-9EE3-7A7A1226C945}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4899E3C8-AD93-4CFD-9EE3-7A7A1226C945}.Release|Any CPU.Build.0 = Release|Any CPU
+		{75ED4AA2-E3BB-4AA2-B5D6-1B566C695D36}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{75ED4AA2-E3BB-4AA2-B5D6-1B566C695D36}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{75ED4AA2-E3BB-4AA2-B5D6-1B566C695D36}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{75ED4AA2-E3BB-4AA2-B5D6-1B566C695D36}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E7502FD7-C875-4DC8-B107-CD3538B646F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7502FD7-C875-4DC8-B107-CD3538B646F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7502FD7-C875-4DC8-B107-CD3538B646F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7502FD7-C875-4DC8-B107-CD3538B646F9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

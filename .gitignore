@@ -1,0 +1,22 @@
+# Build
+bin/
+obj/
+out/
+
+# Rider / VS / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+
+# Mac stuff
+.DS_Store
+
+# Logs
+*.log
+
+#Publish artifacts
+*.publish.xml
+
+# Node_modules if you add stuff later
+node_modules/

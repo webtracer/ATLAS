@@ -1,0 +1,10 @@
+@page "/"
+@using Amdocs.Atlas.Web.Components
+@namespace Amdocs.Atlas.Web.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    Layout = "_Layout";
+    ViewData["Title"] = "ATLAS";
+}
+
+<component type="typeof(App)" render-mode="ServerPrerendered" />
