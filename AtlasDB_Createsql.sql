@@ -1,0 +1,186 @@
+DROP DATABASE IF EXISTS AtlasDb;
+
+-- 1. Create the database if it doesnt exist
+CREATE DATABASE IF NOT EXISTS AtlasDb
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+-- 2. Create the user (adjust password to match appsettings.json)
+CREATE USER IF NOT EXISTS 'atlas_user'@'localhost'
+  IDENTIFIED BY 'BatManRules';
+
+-- 3. Grant privileges on AtlasDb
+GRANT ALL PRIVILEGES ON AtlasDb.* TO 'atlas_user'@'localhost';
+
+FLUSH PRIVILEGES;
+
+use atlasdb;
+
+CREATE TABLE ChangeLogs (
+  ChangeLogId int NOT NULL AUTO_INCREMENT,
+  EntityName longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  EntityId int NOT NULL,
+  FieldName longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  OldValue longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  NewValue longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  ChangedBy longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  ChangedAt datetime(6) NOT NULL,
+  PRIMARY KEY (ChangeLogId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE customers (
+  CustomerId int NOT NULL AUTO_INCREMENT,
+  Name longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  Description longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  IsActive tinyint(1) NOT NULL,
+  CreatedAt datetime(6) NOT NULL,
+  UpdatedAt datetime(6) NOT NULL,
+  PRIMARY KEY (CustomerId)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE environments (
+  EnvironmentId int NOT NULL AUTO_INCREMENT,
+  Name longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  Description longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  IsActive tinyint(1) NOT NULL,
+  CreatedAt datetime(6) NOT NULL,
+  UpdatedAt datetime(6) NOT NULL,
+  PRIMARY KEY (EnvironmentId)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE locations (
+  LocationId int NOT NULL AUTO_INCREMENT,
+  Name longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  Type longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  Description longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  IsActive tinyint(1) NOT NULL,
+  CreatedAt datetime(6) NOT NULL,
+  UpdatedAt datetime(6) NOT NULL,
+  PRIMARY KEY (LocationId)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE owners (
+  OwnerId int NOT NULL AUTO_INCREMENT,
+  Name longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  Email longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  Type longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  Notes longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  IsActive tinyint(1) NOT NULL,
+  CreatedAt datetime(6) NOT NULL,
+  UpdatedAt datetime(6) NOT NULL,
+  PRIMARY KEY (OwnerId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE projects (
+  ProjectId int NOT NULL AUTO_INCREMENT,
+  Name longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  Code longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  Description longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  IsActive tinyint(1) NOT NULL,
+  CreatedAt datetime(6) NOT NULL,
+  UpdatedAt datetime(6) NOT NULL,
+  PRIMARY KEY (ProjectId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE roles (
+  RoleId int NOT NULL AUTO_INCREMENT,
+  Name longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  Description longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  IsCritical tinyint(1) NOT NULL,
+  IsActive tinyint(1) NOT NULL,
+  CreatedAt datetime(6) NOT NULL,
+  UpdatedAt datetime(6) NOT NULL,
+  PRIMARY KEY (RoleId)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE vcenters (
+  VcenterId int NOT NULL AUTO_INCREMENT,
+  Name longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  IpAddress longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  Description longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  Passphrase longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  IsActive tinyint(1) NOT NULL,
+  CreatedAt datetime(6) NOT NULL,
+  UpdatedAt datetime(6) NOT NULL,
+  PRIMARY KEY (VcenterId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE servers (
+  ServerId int NOT NULL AUTO_INCREMENT,
+  Hostname varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  Fqdn longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  IpAddress longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  SecondaryIp longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  OsName longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  OsFamily longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  OsMajorVersion longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  IsVm tinyint(1) NOT NULL,
+  SourceType longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  VmInstanceUuid longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  VmBiosUuid longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  IsActive tinyint(1) NOT NULL,
+  LifecycleStatus longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  CreatedAt datetime(6) NOT NULL,
+  UpdatedAt datetime(6) NOT NULL,
+  CommissionedAt datetime(6) DEFAULT NULL,
+  DecommissionedAt datetime(6) DEFAULT NULL,
+  EnvironmentId int NOT NULL,
+  RoleId int NOT NULL,
+  OwnerId int DEFAULT NULL,
+  LocationId int DEFAULT NULL,
+  CustomerId int DEFAULT NULL,
+  VcenterId int DEFAULT NULL,
+  ProjectId int DEFAULT NULL,
+  PRIMARY KEY (ServerId),
+  KEY IX_Servers_CustomerId (CustomerId),
+  KEY IX_Servers_EnvironmentId (EnvironmentId),
+  KEY IX_Servers_Hostname_EnvironmentId (Hostname,EnvironmentId),
+  KEY IX_Servers_LocationId (LocationId),
+  KEY IX_Servers_OwnerId (OwnerId),
+  KEY IX_Servers_ProjectId (ProjectId),
+  KEY IX_Servers_RoleId (RoleId),
+  KEY IX_Servers_VcenterId (VcenterId),
+  CONSTRAINT FK_Servers_Customers_CustomerId FOREIGN KEY (CustomerId) REFERENCES customers (CustomerId) ON DELETE SET NULL,
+  CONSTRAINT FK_Servers_Environments_EnvironmentId FOREIGN KEY (EnvironmentId) REFERENCES environments (EnvironmentId) ON DELETE RESTRICT,
+  CONSTRAINT FK_Servers_Locations_LocationId FOREIGN KEY (LocationId) REFERENCES locations (LocationId) ON DELETE SET NULL,
+  CONSTRAINT FK_Servers_Owners_OwnerId FOREIGN KEY (OwnerId) REFERENCES owners (OwnerId) ON DELETE SET NULL,
+  CONSTRAINT FK_Servers_Projects_ProjectId FOREIGN KEY (ProjectId) REFERENCES projects (ProjectId) ON DELETE SET NULL,
+  CONSTRAINT FK_Servers_Roles_RoleId FOREIGN KEY (RoleId) REFERENCES roles (RoleId) ON DELETE RESTRICT,
+  CONSTRAINT FK_Servers_Vcenters_VcenterId FOREIGN KEY (VcenterId) REFERENCES vcenters (VcenterId) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE servertags (
+  ServerTagId int NOT NULL AUTO_INCREMENT,
+  ServerId int NOT NULL,
+  Tag varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  PRIMARY KEY (ServerTagId),
+  UNIQUE KEY IX_ServerTags_ServerId_Tag (ServerId,Tag),
+  CONSTRAINT FK_ServerTags_Servers_ServerId FOREIGN KEY (ServerId) REFERENCES servers (ServerId) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE healthchecks (
+  HealthCheckId int NOT NULL AUTO_INCREMENT,
+  ServerId int NOT NULL,
+  CheckTime datetime(6) NOT NULL,
+  Reachable tinyint(1) NOT NULL,
+  StatusCode int DEFAULT NULL,
+  ResponseMs int DEFAULT NULL,
+  Source longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  Notes longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  PRIMARY KEY (HealthCheckId),
+  KEY IX_HealthChecks_ServerId_CheckTime (ServerId,CheckTime),
+  CONSTRAINT FK_HealthChecks_Servers_ServerId FOREIGN KEY (ServerId) REFERENCES servers (ServerId) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE notes (
+  NoteId int NOT NULL AUTO_INCREMENT,
+  ServerId int NOT NULL,
+  CreatedBy longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  CreatedAt datetime(6) NOT NULL,
+  Text longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  IsPinned tinyint(1) NOT NULL,
+  PRIMARY KEY (NoteId),
+  KEY IX_Notes_ServerId (ServerId),
+  CONSTRAINT FK_Notes_Servers_ServerId FOREIGN KEY (ServerId) REFERENCES servers (ServerId) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
