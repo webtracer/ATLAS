@@ -1,6 +1,6 @@
 <div align="center">
 
-![ATLAS Logo](images/atlas-logo.png)
+![ATLAS Logo](Amdocs.Atlas.Web/wwwroot/images/atlas-logo.png)
 
 # **ATLAS**
 ### *Amdocs Technical Lifecycle & Asset System*
@@ -167,8 +167,8 @@ dotnet run --project Amdocs.Atlas.Web
 
 The repository expects image assets under an `images/` folder at the solution root:
 
-- `images/atlas-logo-square.png` – Square ATLAS logo for README / GitHub usage  
-- `images/atlas-logo-variant-c.png` – Full logo with ATLAS text (for splash screens, docs, etc.)  
+- `Amdocs.Atlas.Web/wwwroot/images/atlas-logo-square.png` – Square ATLAS logo for README / GitHub usage  
+- `Amdocs.Atlas.Web/wwwroot/images/atlas-logo-variant-c.png` – Full logo with ATLAS text (for splash screens, docs, etc.)  
 
 You can adjust these paths if you prefer a different layout; just update the image references at the top of this README.
 
