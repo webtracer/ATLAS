@@ -1,0 +1,279 @@
+﻿@page "/vcenters"
+@using System.Net.Http.Json
+@using Amdocs.Atlas.Core.Entities
+@inject IHttpClientFactory HttpClientFactory
+
+<h3>Vcenters</h3>
+
+<p><strong>Debug:</strong> isCreating = @isCreating, isEditing = @isEditing</p>
+
+@if (isLoading)
+{
+    <p>Loading vcenters...</p>
+}
+else if (!string.IsNullOrEmpty(loadError))
+{
+    <div class="alert alert-danger">
+        Error: @loadError
+    </div>
+}
+else
+{
+    <button type="button"
+            class="btn btn-primary mb-3"
+            @onclick="StartCreate">
+        Add Vcenter
+    </button>
+
+    @if (vcenters.Count == 0)
+    {
+        <p>No vcenters found.</p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>IP Address</th>
+                <th>Description</th>
+                <th>Active</th>
+                <th style="width: 150px;"></th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var vc in vcenters)
+            {
+                <tr>
+                    <td>@vc.Name</td>
+                    <td>@vc.IpAddress</td>
+                    <td>@vc.Description</td>
+                    <td>@(vc.IsActive ? "Yes" : "No")</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary me-2" @onclick="() => StartEdit(vc)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(vc)">Delete</button>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    }
+
+    @if (isCreating || isEditing)
+    {
+        <div class="card mt-4">
+            <div class="card-header">
+                @(isCreating ? "Add Vcenter" : "Edit Vcenter")
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Name</label>
+                    <InputText class="form-control" @bind-Value="editModel.Name" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">IP Address</label>
+                    <InputText class="form-control" @bind-Value="editModel.IpAddress" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <InputText class="form-control" @bind-Value="editModel.Description" />
+                </div>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           id="isActiveCheck"
+                           @bind="editModel.IsActive" />
+                    <label class="form-check-label" for="isActiveCheck">
+                        Active
+                    </label>
+                </div>
+
+                <button type="button"
+                        class="btn btn-primary me-2"
+                        @onclick="SaveAsync">
+                    Save
+                </button>
+                <button type="button"
+                        class="btn btn-secondary"
+                        @onclick="CancelEdit">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    }
+
+    @if (deleteCandidate is not null)
+    {
+        <div class="alert alert-warning mt-4">
+            <p>
+                Are you sure you want to delete vcenter
+                <strong>@deleteCandidate.Name</strong> (@deleteCandidate.IpAddress)?
+            </p>
+            <button type="button"
+                    class="btn btn-danger me-2"
+                    @onclick="ConfirmDeleteAsync">
+                Yes, delete
+            </button>
+            <button type="button"
+                    class="btn btn-secondary"
+                    @onclick="CancelDelete">
+                Cancel
+            </button>
+        </div>
+    }
+}
+
+@code {
+    private List<Vcenter> vcenters = new();
+    private bool isLoading = true;
+    private string? loadError;
+
+    private bool isCreating;
+    private bool isEditing;
+    private Vcenter editModel = new();
+
+    private Vcenter? deleteCandidate;
+
+    private HttpClient CreateClient() => HttpClientFactory.CreateClient("AtlasApi");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadVcentersAsync();
+    }
+
+    private async Task LoadVcentersAsync()
+    {
+        isLoading = true;
+        loadError = null;
+
+        try
+        {
+            var client = CreateClient();
+            var result = await client.GetFromJsonAsync<List<Vcenter>>("api/vcenters");
+            vcenters = result ?? new List<Vcenter>();
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void StartCreate()
+    {
+        isCreating = true;
+        isEditing = false;
+        deleteCandidate = null;
+
+        editModel = new Vcenter
+        {
+            IsActive = true
+        };
+    }
+
+    private void StartEdit(Vcenter vc)
+    {
+        isEditing = true;
+        isCreating = false;
+        deleteCandidate = null;
+
+        editModel = new Vcenter
+        {
+            VcenterId  = vc.VcenterId,
+            Name       = vc.Name,
+            IpAddress  = vc.IpAddress,
+            Description= vc.Description,
+            IsActive   = vc.IsActive,
+            CreatedAt  = vc.CreatedAt,
+            UpdatedAt  = vc.UpdatedAt
+        };
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(editModel.IpAddress))
+            {
+                loadError = "IP Address is required.";
+                return;
+            }
+
+            var client = CreateClient();
+            HttpResponseMessage response;
+
+            if (isCreating)
+            {
+                response = await client.PostAsJsonAsync("api/vcenters", editModel);
+            }
+            else if (isEditing)
+            {
+                response = await client.PutAsJsonAsync($"api/vcenters/{editModel.VcenterId}", editModel);
+            }
+            else
+            {
+                return;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                loadError = $"Save failed ({(int)response.StatusCode} {response.StatusCode}): {content}";
+                return;
+            }
+
+            isCreating = false;
+            isEditing = false;
+            editModel = new Vcenter();
+
+            await LoadVcentersAsync();
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        isCreating = false;
+        isEditing = false;
+        editModel = new Vcenter();
+    }
+
+    private void ConfirmDelete(Vcenter vc)
+    {
+        deleteCandidate = vc;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (deleteCandidate is null)
+            return;
+
+        try
+        {
+            var client = CreateClient();
+            var response = await client.DeleteAsync($"api/vcenters/{deleteCandidate.VcenterId}");
+            response.EnsureSuccessStatusCode();
+
+            deleteCandidate = null;
+            await LoadVcentersAsync();
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
+    }
+
+    private void CancelDelete()
+    {
+        deleteCandidate = null;
+    }
+}
