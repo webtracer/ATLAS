@@ -32,46 +32,39 @@ else
     }
     else
     {
-        <table class="table table-striped table-sm">
+        <table class="table table-striped">
             <thead>
             <tr>
-                <th>Id</th>
                 <th>Hostname</th>
-                <th>IP</th>
-                <th>EnvironmentId</th>
-                <th>RoleId</th>
-                <th>CustomerId</th>
-                <th>Active</th>
-                <th></th>
+                <th>IP Address</th>
+                <th>VCenter IP</th>
+                <th>Customer</th>
+                <th>Environment</th>
+                <th>Role</th>
+                <th>Operating System</th>
+                <th style="width: 150px;"></th>
             </tr>
             </thead>
             <tbody>
             @foreach (var server in servers)
             {
                 <tr>
-                    <td>@server.ServerId</td>
                     <td>@server.Hostname</td>
                     <td>@server.IpAddress</td>
+                    <td>@GetVcenterIp(server.VcenterId)</td>
+                    <td>@GetCustomerName(server.CustomerId)</td>
                     <td>@GetEnvironmentName(server.EnvironmentId)</td>
                     <td>@GetRoleName(server.RoleId)</td>
-                    <td>@GetCustomerName(server.CustomerId)</td>
-                    <td>@(server.IsActive ? "Yes" : "No")</td>
+                    <td>@server.OsName</td>
                     <td>
-                        <button type="button"
-                                class="btn btn-sm btn-secondary me-1"
-                                @onclick="() => StartEdit(server)">
-                            Edit
-                        </button>
-                        <button type="button"
-                                class="btn btn-sm btn-danger"
-                                @onclick="() => AskDelete(server)">
-                            Delete
-                        </button>
+                        <button class="btn btn-sm btn-primary me-2" @onclick="() => StartEdit(server)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(server)">Delete</button>
                     </td>
                 </tr>
             }
             </tbody>
         </table>
+
     }
 
     @if (isCreating || isEditing)
@@ -83,18 +76,42 @@ else
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label">Hostname</label>
-                    <input class="form-control" @bind="editModel.Hostname" />
+                    <InputText class="form-control" @bind-Value="editModel.Hostname" />
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">IP Address</label>
-                    <input class="form-control" @bind="editModel.IpAddress" />
+                    <InputText class="form-control" @bind-Value="editModel.IpAddress" />
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">VCenter (IP)</label>
+                    <select class="form-select" @bind="editModel.VcenterId">
+                        <option value="">-- Select VCenter --</option>
+                        @foreach (var vcenter in vcenters)
+                        {
+                            <option value="@vcenter.VcenterId">
+                                @vcenter.IpAddress @if (!string.IsNullOrWhiteSpace(vcenter.Name)) { @($" ({vcenter.Name})") }
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Customer</label>
+                    <select class="form-select" @bind="editModel.CustomerId">
+                        <option value="">-- Select Customer --</option>
+                        @foreach (var customer in customers)
+                        {
+                            <option value="@customer.CustomerId">@customer.Name</option>
+                        }
+                    </select>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">Environment</label>
                     <select class="form-select" @bind="editModel.EnvironmentId">
-                        <option value="0">-- Select Environment --</option>
+                        <option value="">-- Select Environment --</option>
                         @foreach (var env in environments)
                         {
                             <option value="@env.EnvironmentId">@env.Name</option>
@@ -114,17 +131,15 @@ else
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Customer</label>
-                    <select class="form-select" @bind="editModel.CustomerId">
-                        <option value="">-- None --</option>
-                        @foreach (var customer in customers)
-                        {
-                            <option value="@customer.CustomerId">@customer.Name</option>
-                        }
-                    </select>
+                    <label class="form-label">Operating System</label>
+                    <InputText class="form-control" @bind-Value="editModel.OsName" />
                 </div>
 
-
+                <div class="mb-3">
+                    <label class="form-label">Operating System Version</label>
+                    <InputText class="form-control" @bind-Value="editModel.OsFamily" />
+                </div>
+                
                 <div class="form-check mb-3">
                     <input class="form-check-input"
                            type="checkbox"
@@ -172,6 +187,7 @@ else
 
 @code {
     private List<Server> servers = new();
+    private List<Vcenter> vcenters = new();
     private bool isLoading = true;
     private string? loadError;
 
@@ -199,6 +215,10 @@ else
             : customers.FirstOrDefault(c => c.CustomerId == customerId)?.Name
               ?? customerId.Value.ToString();
 
+    private string GetVcenterIp(int? vcenterId)
+        => vcenterId is int id
+            ? vcenters.FirstOrDefault(v => v.VcenterId == id)?.IpAddress ?? string.Empty
+            : string.Empty;
 
     /*protected override async Task OnInitializedAsync()
     {
@@ -225,6 +245,10 @@ else
 
             var customerResult = await client.GetFromJsonAsync<List<Customer>>("api/customers");
             customers = customerResult ?? new List<Customer>();
+            
+            var vcenterResult = await client.GetFromJsonAsync<List<Vcenter>>("api/vcenters");
+            vcenters = vcenterResult ?? new List<Vcenter>();
+
         }
         catch (Exception ex)
         {
@@ -272,6 +296,48 @@ else
 
         StateHasChanged();
     }
+    
+    // /*
+    // -------------------------
+    // DELETE HANDLER
+    // -------------------------
+    private void ConfirmDelete(Server server)
+    {
+        deleteCandidate = server;
+        ShowDeleteConfirm = true;
+    }
+
+    private bool ShowDeleteConfirm = false;
+
+    // Call this from your "Yes, delete" button
+    private async Task DeleteServerAsync()
+    {
+        if (deleteCandidate is null)
+        {
+            ShowDeleteConfirm = false;
+            return;
+        }
+
+        try
+        {
+            var client = CreateClient();
+
+            var response = await client.DeleteAsync($"api/servers/{deleteCandidate.ServerId}");
+            response.EnsureSuccessStatusCode();
+
+            await LoadServersAsync();
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Failed to delete server: {ex.Message}";
+        }
+        finally
+        {
+            ShowDeleteConfirm = false;
+            deleteCandidate = null;
+        }
+    }
+//*/
 
     private void StartEdit(Server server)
     {
@@ -308,39 +374,18 @@ else
             ProjectId         = server.ProjectId
         };
     }
-
-    /*private async Task SaveAsync()
-    {
-        try
-        {
-            var client = CreateClient();
-
-            if (isCreating)
-            {
-                var response = await client.PostAsJsonAsync("api/servers", editModel);
-                response.EnsureSuccessStatusCode();
-            }
-            else if (isEditing)
-            {
-                var response = await client.PutAsJsonAsync($"api/servers/{editModel.ServerId}", editModel);
-                response.EnsureSuccessStatusCode();
-            }
-
-            isCreating = false;
-            isEditing = false;
-            editModel = new Server();
-
-            await LoadServersAsync();
-        }
-        catch (Exception ex)
-        {
-            loadError = ex.Message;
-        }
-    }*/
+    
     private async Task SaveAsync()
     {
         try
         {
+            // basic guard so we don't send junk
+            if (editModel.RoleId == 0)
+            {
+                loadError = "Please select a role before saving.";
+                return;
+            }
+            
             var client = CreateClient();
             HttpResponseMessage response;
 
@@ -381,13 +426,6 @@ else
         isCreating = false;
         isEditing = false;
         editModel = new Server();
-    }
-
-    private void AskDelete(Server server)
-    {
-        deleteCandidate = server;
-        isCreating = false;
-        isEditing = false;
     }
 
     private async Task ConfirmDeleteAsync()

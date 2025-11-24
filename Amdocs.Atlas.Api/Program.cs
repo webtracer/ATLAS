@@ -1,5 +1,6 @@
 using Amdocs.Atlas.Data;
 using Microsoft.EntityFrameworkCore;
+using Amdocs.Atlas.Api.Mapping;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,7 @@ builder.Services.AddDbContext<AtlasDbContext>(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddAutoMapper(typeof(AtlasProfile));
 
 var app = builder.Build();
 
