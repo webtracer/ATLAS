@@ -1,7 +1,9 @@
 @page "/servers"
 @using System.Net.Http.Json
 @using Amdocs.Atlas.Core.Entities
+@using Amdocs.Atlas.Core.DTOs
 @using Environment = Amdocs.Atlas.Core.Entities.Environment
+@using System.Linq
 @inject IHttpClientFactory HttpClientFactory
 
 <h3>Servers</h3>
@@ -91,6 +93,7 @@ else
         <table class="table table-striped">
             <thead>
             <tr>
+                <th style="width: 80px;">RDP</th>
                 <th>Hostname</th>
                 <th>IP Address</th>
                 <th>VCenter IP</th>
@@ -101,10 +104,20 @@ else
                 <th style="width: 150px;"></th>
             </tr>
             </thead>
+
             <tbody>
             @foreach (var server in servers)
             {
                 <tr>
+                    <td>
+                        @if (!string.IsNullOrWhiteSpace(server.IpAddress))
+                        {
+                            <a class="btn btn-sm btn-outline-primary"
+                               href="@BuildRdpUrl(server)">
+                                RDP
+                            </a>
+                        }
+                    </td>
                     <td>@server.Hostname</td>
                     <td>@server.IpAddress</td>
                     <td>@GetVcenterIp(server.VcenterId)</td>
@@ -119,6 +132,7 @@ else
                 </tr>
             }
             </tbody>
+
         </table>
     }
 
@@ -177,10 +191,10 @@ else
                 <div class="mb-3">
                     <label class="form-label">Role</label>
                     <select class="form-select" @bind="editModel.RoleId">
-                        <option value="0">-- Select Role --</option>
+                        <option value="">-- Select Role --</option>
                         @foreach (var role in roles)
                         {
-                            <option value="@role.RoleId">@role.Name</option>
+                            <option value="@role.Id">@role.Name</option>
                         }
                     </select>
                 </div>
@@ -247,7 +261,7 @@ else
 
     private List<Vcenter> vcenters = new();
     private List<Environment> environments = new();
-    private List<Role> roles = new();
+    private List<RoleDto> roles = new();
     private List<Customer> customers = new();
 
     private bool isLoading = true;
@@ -264,13 +278,16 @@ else
     private int selectedCustomerId;
     private int selectedEnvironmentId;
     private int selectedVcenterId;
+    
+    private string apiBaseUrl = string.Empty;
+
 
     private string GetEnvironmentName(int environmentId) =>
         environments.FirstOrDefault(e => e.EnvironmentId == environmentId)?.Name
         ?? environmentId.ToString();
 
     private string GetRoleName(int roleId) =>
-        roles.FirstOrDefault(r => r.RoleId == roleId)?.Name
+        roles.FirstOrDefault(r => r.Id == roleId)?.Name
         ?? roleId.ToString();
 
     private string GetCustomerName(int? customerId) =>
@@ -286,9 +303,13 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        var client = CreateClient();
+        apiBaseUrl = client.BaseAddress?.ToString().TrimEnd('/') ?? string.Empty;
+
         await LoadLookupsAsync();
         await LoadServersAsync();
     }
+
 
     private async Task LoadLookupsAsync()
     {
@@ -299,8 +320,9 @@ else
             var envResult = await client.GetFromJsonAsync<List<Environment>>("api/environments");
             environments = envResult ?? new List<Environment>();
 
-            var roleResult = await client.GetFromJsonAsync<List<Role>>("api/roles");
-            roles = roleResult ?? new List<Role>();
+            var roleResult = await client.GetFromJsonAsync<List<RoleDto>>("api/roles");
+            roles = roleResult ?? new List<RoleDto>();
+
 
             var customerResult = await client.GetFromJsonAsync<List<Customer>>("api/customers");
             customers = customerResult ?? new List<Customer>();
@@ -474,6 +496,18 @@ else
     {
         deleteCandidate = null;
     }
+    
+    private string BuildRdpUrl(Server server)
+    {
+        if (string.IsNullOrWhiteSpace(server.IpAddress))
+            return "#";
+
+        if (string.IsNullOrEmpty(apiBaseUrl))
+            return $"api/rdp/server/{server.ServerId}";
+
+        return $"{apiBaseUrl}/api/rdp/server/{server.ServerId}";
+    }
+
 
     // -------- Filter & search handlers --------
 

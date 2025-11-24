@@ -5,7 +5,7 @@
 
 <h3>Vcenters</h3>
 
-<p><strong>Debug:</strong> isCreating = @isCreating, isEditing = @isEditing</p>
+@* <p><strong>Debug:</strong> isCreating = @isCreating, isEditing = @isEditing</p> *@
 
 @if (isLoading)
 {
@@ -34,28 +34,36 @@ else
         <table class="table table-striped">
             <thead>
             <tr>
+                <th style="width: 80px;">Web</th>
                 <th>Name</th>
                 <th>IP Address</th>
                 <th>Description</th>
-                <th>Active</th>
-                <th style="width: 150px;"></th>
+                @* other columns you already have *@
             </tr>
             </thead>
             <tbody>
-            @foreach (var vc in vcenters)
+            @foreach (var vcenter in vcenters)
             {
                 <tr>
-                    <td>@vc.Name</td>
-                    <td>@vc.IpAddress</td>
-                    <td>@vc.Description</td>
-                    <td>@(vc.IsActive ? "Yes" : "No")</td>
                     <td>
-                        <button class="btn btn-sm btn-primary me-2" @onclick="() => StartEdit(vc)">Edit</button>
-                        <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(vc)">Delete</button>
+                        @if (!string.IsNullOrWhiteSpace(vcenter.IpAddress))
+                        {
+                            <a class="btn btn-sm btn-outline-primary"
+                               href="@BuildVcenterWebUrl(vcenter)"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                vSphere
+                            </a>
+                        }
                     </td>
+
+                    <td>@vcenter.Name</td>
+                    <td>@vcenter.IpAddress</td>
+                    <td>@vcenter.Description</td>
                 </tr>
             }
             </tbody>
+
         </table>
     }
 
@@ -276,4 +284,23 @@ else
     {
         deleteCandidate = null;
     }
+    
+    private string BuildVcenterWebUrl(Vcenter vcenter)
+    {
+        if (vcenter is null || string.IsNullOrWhiteSpace(vcenter.IpAddress))
+            return "#";
+
+        var ip = vcenter.IpAddress.Trim();
+
+        // If someday you store full URLs like "https://vcenter01.mydomain",
+        // don't double-prefix.
+        if (ip.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            ip.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return ip;
+        }
+
+        return $"https://{ip}";
+    }
+
 }

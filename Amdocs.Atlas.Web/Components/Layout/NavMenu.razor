@@ -8,7 +8,7 @@
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="flex-column">
-        <div class="nav-item px-3">
+        @*<div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
             </NavLink>
@@ -24,16 +24,34 @@
             <NavLink class="nav-link" href="weather">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
             </NavLink>
-        </div>
-        <div class="nav-item px-3">
+        </div>*@
+        
+        <div class="nav-item px-10">
             <NavLink class="nav-link" href="servers">
                 <span class="oi oi-list" aria-hidden="true"></span> Servers
             </NavLink>
         </div>
         
-        <li class="nav-item px-3">
+        <li class="nav-item px-2">
             <NavLink class="nav-link" href="vcenters" Match="NavLinkMatch.All">
                 <span class="oi oi-cloud" aria-hidden="true"></span> Vcenters
+            </NavLink>
+        </li>
+        <li class="nav-item px-2">
+            <NavLink class="nav-link" href="customers" Match="NavLinkMatch.All">
+                Customers
+            </NavLink>
+        </li>
+
+        <li class="nav-item px-2">
+            <NavLink class="nav-link" href="environments" Match="NavLinkMatch.All">
+                Environments
+            </NavLink>
+        </li>
+
+        <li class="nav-item px-2">
+            <NavLink class="nav-link" href="roles" Match="NavLinkMatch.All">
+                Roles
             </NavLink>
         </li>
 
