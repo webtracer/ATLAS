@@ -20,6 +20,10 @@ builder.Services.AddHttpClient("AtlasApi", client =>
     client.BaseAddress = new Uri(apiBaseUrl);
 });
 
+builder.Services.AddScoped(sp =>
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient("AtlasApi"));
+
+
 var app = builder.Build();
 
 // ... rest of your pipeline stays the same

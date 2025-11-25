@@ -1,9 +1,9 @@
-﻿@page "/Role"
+﻿@page "/roles"
 @using System.Net.Http.Json
 @using Amdocs.Atlas.Core.DTOs
 @inject HttpClient Http
 
-<h3>Role</h3>
+<h3>Roles</h3>
 
 @if (!string.IsNullOrWhiteSpace(errorMessage))
 {
@@ -16,16 +16,16 @@
 }
 else
 {
-    <EditForm Model="newCustomer" OnValidSubmit="CreateCustomerAsync">
+    <EditForm Model="newRole" OnValidSubmit="CreateRoleAsync">
         <DataAnnotationsValidator />
         <ValidationSummary />
 
         <div class="mb-3">
             <label class="form-label">Name</label>
-            <InputText class="form-control" @bind-Value="newCustomer.Name" />
+            <InputText class="form-control" @bind-Value="newRole.Name" />
         </div>
 
-        <button type="submit" class="btn btn-primary">Add Customer</button>
+        <button type="submit" class="btn btn-primary">Add Role</button>
     </EditForm>
 
     <hr />
@@ -44,29 +44,29 @@ else
                 </tr>
             </thead>
             <tbody>
-            @foreach (var customer in Roles)
+            @foreach (var role in Roles)
             {
                 <tr>
                     <td>
-                        @if (editCustomer?.Id == customer.Id)
+                        @if (editRole?.Id == role.Id)
                         {
-                            <InputText class="form-control" @bind-Value="editCustomer!.Name" />
+                            <InputText class="form-control" @bind-Value="editRole!.Name" />
                         }
                         else
                         {
-                            @customer.Name
+                            @role.Name
                         }
                     </td>
                     <td>
-                        @if (editCustomer?.Id == customer.Id)
+                        @if (editRole?.Id == role.Id)
                         {
-                            <button class="btn btn-sm btn-success me-2" @onclick="() => SaveEditAsync(customer.Id)">Save</button>
+                            <button class="btn btn-sm btn-success me-2" @onclick="() => SaveEditAsync(role.Id)">Save</button>
                             <button class="btn btn-sm btn-secondary" @onclick="CancelEdit">Cancel</button>
                         }
                         else
                         {
-                            <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => BeginEdit(customer)">Edit</button>
-                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCustomerAsync(customer.Id)">Delete</button>
+                            <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => BeginEdit(role)">Edit</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteRoleAsync(role.Id)">Delete</button>
                         }
                     </td>
                 </tr>
@@ -77,15 +77,25 @@ else
 }
 
 @code {
-    private List<CustomerDto> Roles = [];
-    private CustomerDto newCustomer = new();
-    private CustomerDto? editCustomer;
+    //private List<RoleDto> Roles = [];
+    private List<RoleDto> Roles = new();
+    private RoleDto newRole = new();
+    private RoleDto? editRole;
     private bool isLoading = true;
     private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadRoleAsync();
+        try
+        {
+            var result = await Http.GetFromJsonAsync<List<RoleDto>>("api/roles");
+            Roles = result ?? new List<RoleDto>();
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = $"Error loading Role: {ex.Message}";
+        }
     }
 
     private async Task LoadRoleAsync()
@@ -95,7 +105,7 @@ else
             isLoading = true;
             errorMessage = null;
 
-            var result = await Http.GetFromJsonAsync<List<CustomerDto>>("api/Role");
+            var result = await Http.GetFromJsonAsync<List<RoleDto>>("api/Roles");
             Roles = (result ?? []).OrderBy(c => c.Name).ToList();
         }
         catch (Exception ex)
@@ -108,9 +118,9 @@ else
         }
     }
 
-    private async Task CreateCustomerAsync()
+    private async Task CreateRoleAsync()
     {
-        if (string.IsNullOrWhiteSpace(newCustomer.Name))
+        if (string.IsNullOrWhiteSpace(newRole.Name))
         {
             errorMessage = "Name is required.";
             return;
@@ -120,15 +130,15 @@ else
         {
             errorMessage = null;
 
-            var response = await Http.PostAsJsonAsync("api/Role", newCustomer);
+            var response = await Http.PostAsJsonAsync("api/Roles", newRole);
             response.EnsureSuccessStatusCode();
 
-            var created = await response.Content.ReadFromJsonAsync<CustomerDto>();
+            var created = await response.Content.ReadFromJsonAsync<RoleDto>();
             if (created is not null)
             {
                 Roles.Add(created);
                 Roles = Roles.OrderBy(c => c.Name).ToList();
-                newCustomer = new CustomerDto();
+                newRole = new RoleDto();
             }
         }
         catch (Exception ex)
@@ -137,24 +147,24 @@ else
         }
     }
 
-    private void BeginEdit(CustomerDto customer)
+    private void BeginEdit(RoleDto role)
     {
         errorMessage = null;
-        editCustomer = new CustomerDto
+        editRole = new RoleDto
         {
-            Id = customer.Id,
-            Name = customer.Name
+            Id = role.Id,
+            Name = role.Name
         };
     }
 
     private void CancelEdit()
     {
-        editCustomer = null;
+        editRole = null;
     }
 
     private async Task SaveEditAsync(int id)
     {
-        if (editCustomer is null)
+        if (editRole is null)
         {
             return;
         }
@@ -163,35 +173,35 @@ else
         {
             errorMessage = null;
 
-            var response = await Http.PutAsJsonAsync($"api/Role/{id}", editCustomer);
+            var response = await Http.PutAsJsonAsync($"api/Roles/{id}", editRole);
             response.EnsureSuccessStatusCode();
 
             var existing = Roles.First(c => c.Id == id);
-            existing.Name = editCustomer.Name;
+            existing.Name = editRole.Name;
 
             Roles = Roles.OrderBy(c => c.Name).ToList();
-            editCustomer = null;
+            editRole = null;
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error updating customer: {ex.Message}";
+            errorMessage = $"Error updating role: {ex.Message}";
         }
     }
 
-    private async Task DeleteCustomerAsync(int id)
+    private async Task DeleteRoleAsync(int id)
     {
         try
         {
             errorMessage = null;
 
-            var response = await Http.DeleteAsync($"api/Role/{id}");
+            var response = await Http.DeleteAsync($"api/Roles/{id}");
             response.EnsureSuccessStatusCode();
 
             Roles.RemoveAll(c => c.Id == id);
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error deleting customer: {ex.Message}";
+            errorMessage = $"Error deleting role: {ex.Message}";
         }
     }
 }
