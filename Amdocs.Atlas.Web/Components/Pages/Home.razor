@@ -1,7 +1,9 @@
 ﻿@page "/"
 
+@{ string versionNumber = "0.1.0"; }
+
 <PageTitle>ATLAS Home</PageTitle>
 
-<h2>AMDOCS Technical Lifecycle Asset System</h2>
+<h2>AMDOCS Technical Lifecycle Asset System @string.Format("v{0}",versionNumber)</h2>
 
 Welcome to the ATLAS home page.  Please select a link on the left.
