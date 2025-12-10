@@ -5,6 +5,7 @@ public class Vcenter
     public int VcenterId { get; set; }
     public string? Name { get; set; }  // optional friendly name
     public string IpAddress { get; set; } = string.Empty;
+    public string? Passphrase { get; set; }
     public string? Description { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

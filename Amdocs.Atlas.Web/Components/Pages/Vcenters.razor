@@ -39,6 +39,7 @@ else
                 <th style="width: 80px;">Web</th>
                 <th>Name</th>
                 <th>IP Address</th>
+                <th>Passphrase</th>
                 <th>Description</th>
                 @* other columns you already have *@
             </tr>
@@ -61,6 +62,7 @@ else
 
                     <td>@vcenter.Name</td>
                     <td>@vcenter.IpAddress</td>
+                    <td>@vcenter.Passphrase</td>
                     <td>@vcenter.Description</td>
                 </tr>
             }
@@ -84,6 +86,14 @@ else
                 <div class="mb-3">
                     <label class="form-label">IP Address</label>
                     <InputText class="form-control" @bind-Value="editModel.IpAddress" />
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Passphrase</label>
+                    <InputText class="form-control" @bind-Value="editModel.Passphrase" />
+                    @* If you want this masked:
+                        <input type="password" class="form-control" @bind="editModel.Passphrase" />
+                    *@
                 </div>
 
                 <div class="mb-3">
@@ -183,7 +193,8 @@ else
 
         editModel = new Vcenter
         {
-            IsActive = true
+            IsActive = true,
+            Passphrase = string.Empty
         };
     }
 
@@ -195,13 +206,14 @@ else
 
         editModel = new Vcenter
         {
-            VcenterId  = vc.VcenterId,
-            Name       = vc.Name,
-            IpAddress  = vc.IpAddress,
-            Description= vc.Description,
-            IsActive   = vc.IsActive,
-            CreatedAt  = vc.CreatedAt,
-            UpdatedAt  = vc.UpdatedAt
+            VcenterId   = vc.VcenterId,
+            Name        = vc.Name,
+            IpAddress   = vc.IpAddress,
+            Passphrase  = vc.Passphrase,
+            Description = vc.Description,
+            IsActive    = vc.IsActive,
+            CreatedAt   = vc.CreatedAt,
+            UpdatedAt   = vc.UpdatedAt
         };
     }
 

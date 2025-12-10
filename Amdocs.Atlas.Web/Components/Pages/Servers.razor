@@ -7,9 +7,6 @@
 @inject IHttpClientFactory HttpClientFactory
 @using Microsoft.AspNetCore.Components.Forms;
 
-@* TODO - Add VM / Physical field sort toggle button *@
-@* TODO - Hide Excel import or move to a separate page? *@
-
 <h3>Servers</h3>
 
 @if (isLoading)
@@ -24,65 +21,76 @@ else if (!string.IsNullOrEmpty(loadError))
 }
 else
 {
-    <button type="button"
-            class="btn btn-primary mb-3"
-            @onclick="StartCreate">
-        Add Server
-    </button>
-    
-    <div class="card mb-3">
-        <div class="card-body">
-            <h5 class="card-title">Bulk Import Servers from Excel</h5>
-            <p class="card-text">
-                Upload an <code>.xlsx</code> file with the expected columns
-                (Hostname, IpAddress, Customer, Environment, Role, Vcenter, Fqdn, Os, Location, Notes).
-            </p>
+    <div class="d-flex mb-3">
+        <button type="button"
+                class="btn btn-primary"
+                @onclick="StartCreate">
+            Add Server
+        </button>
 
-            <div class="row g-2 align-items-center">
-                <div class="col-md-4">
-                    <InputFile OnChange="OnFileSelected" />
-                </div>
-                <div class="col-md-3">
-                    <button class="btn btn-primary"
-                            @onclick="ImportServersAsync"
-                            disabled="@(! (importFile is not null) || isImporting)">
-                        @(isImporting ? "Importing..." : "Import Servers")
-                    </button>
-                </div>
-            </div>
-
-            @if (!string.IsNullOrEmpty(importMessage))
-            {
-                <div class="mt-3">
-                    <strong>@importMessage</strong>
-                </div>
-            }
-
-            @if (importErrors.Count > 0)
-            {
-                <div class="mt-3">
-                    <h6>Row Errors</h6>
-                    <table class="table table-sm table-bordered">
-                        <thead>
-                        <tr>
-                            <th>Row</th>
-                            <th>Error</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        @foreach (var err in importErrors)
-                        {
-                            <tr>
-                                <td>@err.RowNumber</td>
-                                <td>@err.Message</td>
-                            </tr>
-                        }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        </div>
+        <button type="button"
+                class="btn btn-outline-secondary ms-2"
+                @onclick="ToggleBulkImport">
+            @(showBulkImport ? "Hide Bulk Import" : "Bulk Import")
+        </button>
     </div>
+
+    @if (showBulkImport)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Bulk Import Servers from Excel</h5>
+                <p class="card-text">
+                    Upload an <code>.xlsx</code> file with the expected columns
+                    (Hostname, IpAddress, Customer, Environment, Role, Vcenter, Fqdn, Os, Location, Notes).
+                </p>
+
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-4">
+                        <InputFile OnChange="OnFileSelected" />
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary"
+                                @onclick="ImportServersAsync"
+                                disabled="@(! (importFile is not null) || isImporting)">
+                            @(isImporting ? "Importing..." : "Import Servers")
+                        </button>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(importMessage))
+                {
+                    <div class="mt-3">
+                        <strong>@importMessage</strong>
+                    </div>
+                }
+
+                @if (importErrors.Count > 0)
+                {
+                    <div class="mt-3">
+                        <h6>Row Errors</h6>
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                            <tr>
+                                <th>Row</th>
+                                <th>Error</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            @foreach (var err in importErrors)
+                            {
+                                <tr>
+                                    <td>@err.RowNumber</td>
+                                    <td>@err.Message</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
 
     <!-- Filters + Search -->
     <div class="card mb-3">
@@ -97,7 +105,6 @@ else
                            placeholder="e.g. qat24 or 10.10.10.10" />
 
                 </div>
-
                 <div class="col-md-3">
                     <label class="form-label">Customer</label>
                     <select class="form-select"
@@ -110,7 +117,6 @@ else
                         }
                     </select>
                 </div>
-
                 <div class="col-md-3">
                     <label class="form-label">Environment</label>
                     <select class="form-select"
@@ -123,7 +129,6 @@ else
                         }
                     </select>
                 </div>
-
                 <div class="col-md-3">
                     <label class="form-label">VCenter</label>
                     <select class="form-select"
@@ -137,6 +142,18 @@ else
                             </option>
                         }
                     </select>
+                </div>
+                <div class="row g-3 align-items-end mt-2">
+                    <div class="col-md-3">
+                        <label class="form-label">VM Filter</label>
+                        <select class="form-select"
+                                value="@selectedVmFilter"
+                                @onchange="OnVmFilterChanged">
+                            <option value="0">All Servers</option>
+                            <option value="1">VMs only</option>
+                            <option value="2">Physical only</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -154,6 +171,7 @@ else
                 <th style="width: 80px;">RDP</th>
                 <th>Hostname</th>
                 <th>IP Address</th>
+                <th>VM?</th>
                 <th>VCenter IP</th>
                 <th>Customer</th>
                 <th>Environment</th>
@@ -178,6 +196,7 @@ else
                     </td>
                     <td>@server.Hostname</td>
                     <td>@server.IpAddress</td>
+                    <td>@(server.IsVm ? "VM" : "Physical")</td>
                     <td>
                         @{
                             var vcenterIp  = GetVcenterIp(server.VcenterId);
@@ -227,6 +246,13 @@ else
                 <div class="mb-3">
                     <label class="form-label">IP Address</label>
                     <InputText class="form-control" @bind-Value="editModel.IpAddress" />
+                </div>
+
+                <div class="col-md-4">
+                    <div class="form-check mt-4">
+                        <InputCheckbox class="form-check-input" @bind-Value="editModel.IsVm" />
+                        <label class="form-check-label">Virtual Machine</label>
+                    </div>
                 </div>
                 
                 <div class="mb-3">
@@ -354,9 +380,11 @@ else
     private int selectedCustomerId;
     private int selectedEnvironmentId;
     private int selectedVcenterId;
+    private int selectedVmFilter = 0;  // 0 = All, 1 = VMs only, 2 = Physical only
     
     private string apiBaseUrl = string.Empty;
 
+    private bool showBulkImport;    
     private IBrowserFile? importFile;
     private bool isImporting;
     private string? importMessage;
@@ -374,8 +402,13 @@ else
         return role.Name;
     }
     //=>
-        //roles.FirstOrDefault(r => r.Id == roleId)?.Name
-        //?? roleId.ToString();
+    //roles.FirstOrDefault(r => r.Id == roleId)?.Name
+    //?? roleId.ToString();
+    
+    private void ToggleBulkImport()
+    {
+        showBulkImport = !showBulkImport;
+    }
 
     private string GetCustomerName(int? customerId) =>
         customerId is null
@@ -408,6 +441,15 @@ else
         }
 
         return $"https://{ip}";
+    }
+    
+    private void OnVmFilterChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var value))
+        {
+            selectedVmFilter = value;
+            ApplyFilters();
+        }
     }
 
     protected override async Task OnInitializedAsync()
@@ -673,6 +715,16 @@ else
         if (selectedVcenterId != 0)
         {
             query = query.Where(s => s.VcenterId == selectedVcenterId);
+        }
+        
+        // New VM filter
+        if (selectedVmFilter == 1)
+        {
+            query = query.Where(s => s.IsVm);          // VMs only
+        }
+        else if (selectedVmFilter == 2)
+        {
+            query = query.Where(s => !s.IsVm);         // Physical only
         }
 
         if (!string.IsNullOrWhiteSpace(searchText))
