@@ -116,7 +116,9 @@ public class ServersController : ControllerBase
     
     // POST: api/servers/import
 [HttpPost("import")]
-public async Task<ActionResult<ServerImportResult>> ImportServers(IFormFile file)
+public async Task<ActionResult<ServerImportResult>> ImportServers(
+    [FromForm] IFormFile file,
+    [FromQuery] bool dryRun = false)
 {
     if (file == null || file.Length == 0)
         return BadRequest("No file was uploaded.");
@@ -162,6 +164,28 @@ public async Task<ActionResult<ServerImportResult>> ImportServers(IFormFile file
             .GroupBy(v => v.Name.Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+        // NEW: preload active servers for duplicate/conflict checks
+        var activeServers = await _db.Servers
+            .AsNoTracking()
+            .Where(s => s.IsActive && !string.IsNullOrWhiteSpace(s.IpAddress))
+            .Select(s => new
+            {
+                s.Hostname,
+                s.IpAddress
+            })
+            .ToListAsync();
+
+        // Group active servers by IP so we can quickly see who owns that IP
+        var activeByIp = activeServers
+            .GroupBy(s => s.IpAddress!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => x.Hostname).ToList(),
+                StringComparer.OrdinalIgnoreCase);
+        
+        // Track what we are about to add in THIS import run to also catch duplicates inside the file
+        var stagedByIp = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        
         var serversToAdd = new List<Server>();
 
         result.TotalRows = lastRow - firstRow + 1;
@@ -272,6 +296,52 @@ public async Task<ActionResult<ServerImportResult>> ImportServers(IFormFile file
                     locationId = location.LocationId;
             }
 
+            // --- Duplicate / conflict logic ---
+
+            var normalizedHostname = hostname.Trim();
+            var normalizedIp = ipAddress.Trim();
+
+// 1) Check against active servers already in the database
+            if (!string.IsNullOrWhiteSpace(normalizedIp) &&
+                activeByIp.TryGetValue(normalizedIp, out var existingHosts) &&
+                existingHosts.Count > 0)
+            {
+                // Same host + same IP: skip as duplicate
+                if (existingHosts.Any(h =>
+                        string.Equals(h, normalizedHostname, StringComparison.OrdinalIgnoreCase)))
+                {
+                    result.Errors.Add(new ServerImportRowError
+                    {
+                        RowNumber = rowNumber,
+                        Message = $"Duplicate of existing active server '{normalizedHostname}' with IP {normalizedIp}. Row skipped."
+                    });
+                    continue;
+                }
+
+                // Same IP, different host(s): conflict
+                var hostList = string.Join(", ", existingHosts);
+                result.Errors.Add(new ServerImportRowError
+                {
+                    RowNumber = rowNumber,
+                    Message = $"IP {normalizedIp} is already in use by active server(s): {hostList}. Row skipped."
+                });
+                continue;
+            }
+
+// 2) Check against servers we are already staging in this import run
+            if (!string.IsNullOrWhiteSpace(normalizedIp) &&
+                stagedByIp.TryGetValue(normalizedIp, out var stagedHosts) &&
+                stagedHosts.Any(h =>
+                    string.Equals(h, normalizedHostname, StringComparison.OrdinalIgnoreCase)))
+            {
+                result.Errors.Add(new ServerImportRowError
+                {
+                    RowNumber = rowNumber,
+                    Message = $"Duplicate of another row in this import for '{normalizedHostname}' with IP {normalizedIp}. Row skipped."
+                });
+                continue;
+            }
+
             var server = new Server
             {
                 Hostname = hostname,
@@ -288,9 +358,21 @@ public async Task<ActionResult<ServerImportResult>> ImportServers(IFormFile file
             };
 
             serversToAdd.Add(server);
+            
+            // Update stagedByIp so subsequent rows see this as taken within this import
+            if (!string.IsNullOrWhiteSpace(normalizedIp))
+            {
+                if (!stagedByIp.TryGetValue(normalizedIp, out var hostsForIp))
+                {
+                    hostsForIp = new List<string>();
+                    stagedByIp[normalizedIp] = hostsForIp;
+                }
+
+                hostsForIp.Add(normalizedHostname);
+            }
         }
 
-        if (serversToAdd.Count > 0)
+        if (serversToAdd.Count > 0 && !dryRun)
         {
             await _db.Servers.AddRangeAsync(serversToAdd);
             await _db.SaveChangesAsync();

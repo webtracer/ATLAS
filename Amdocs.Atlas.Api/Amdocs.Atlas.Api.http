@@ -1,4 +1,5 @@
-@Amdocs.Atlas.Api_HostAddress = http://localhost:5186
+#@Amdocs.Atlas.Api_HostAddress = http://localhost:5186
+@Amdocs.Atlas.Api_HostAddress = http://10.124.30.37:5186
 
 GET {{Amdocs.Atlas.Api_HostAddress}}/weatherforecast/
 Accept: application/json

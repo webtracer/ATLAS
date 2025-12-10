@@ -7,6 +7,9 @@
 @inject IHttpClientFactory HttpClientFactory
 @using Microsoft.AspNetCore.Components.Forms;
 
+@* TODO - Add VM / Physical field sort toggle button *@
+@* TODO - Hide Excel import or move to a separate page? *@
+
 <h3>Servers</h3>
 
 @if (isLoading)
@@ -175,7 +178,25 @@ else
                     </td>
                     <td>@server.Hostname</td>
                     <td>@server.IpAddress</td>
-                    <td>@GetVcenterIp(server.VcenterId)</td>
+                    <td>
+                        @{
+                            var vcenterIp  = GetVcenterIp(server.VcenterId);
+                            var vcenterUrl = GetVcenterWebUrl(server.VcenterId);
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(vcenterUrl) && !string.IsNullOrWhiteSpace(vcenterIp))
+                        {
+                            <a href="@vcenterUrl"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                @vcenterIp
+                            </a>
+                        }
+                        else
+                        {
+                            @vcenterIp
+                        }
+                    </td>
                     <td>@GetCustomerName(server.CustomerId)</td>
                     <td>@GetEnvironmentName(server.EnvironmentId)</td>
                     <td>@GetRoleName(server.RoleId)</td>
@@ -344,9 +365,17 @@ else
         environments.FirstOrDefault(e => e.EnvironmentId == environmentId)?.Name
         ?? environmentId.ToString();
 
-    private string GetRoleName(int roleId) =>
-        roles.FirstOrDefault(r => r.Id == roleId)?.Name
-        ?? roleId.ToString();
+    private string GetRoleName(int roleId) {
+        var role = roles.FirstOrDefault(r => r.Id == roleId); // or r.RoleId, once corrected
+        if (role is null)
+        {
+            return $"[missing:{roleId}]";
+        }
+        return role.Name;
+    }
+    //=>
+        //roles.FirstOrDefault(r => r.Id == roleId)?.Name
+        //?? roleId.ToString();
 
     private string GetCustomerName(int? customerId) =>
         customerId is null
@@ -358,6 +387,28 @@ else
         => vcenterId is int id
             ? vcenters.FirstOrDefault(v => v.VcenterId == id)?.IpAddress ?? string.Empty
             : string.Empty;
+    
+    private string GetVcenterWebUrl(int? vcenterId)
+    {
+        if (vcenterId is not int id)
+            return string.Empty;
+
+        var vcenter = vcenters.FirstOrDefault(v => v.VcenterId == id);
+        if (vcenter is null || string.IsNullOrWhiteSpace(vcenter.IpAddress))
+            return string.Empty;
+
+        var ip = vcenter.IpAddress.Trim();
+
+        // If someday you store full URLs like "https://vcenter01.domain",
+        // don't double-prefix.
+        if (ip.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            ip.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return ip;
+        }
+
+        return $"https://{ip}";
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -670,8 +721,56 @@ else
             importMessage = $"Import failed ({(int)response.StatusCode} {response.StatusCode}): {errorText}";
             return;
         }
-
+        
         var result = await response.Content.ReadFromJsonAsync<ServerImportResultView>();
+
+        if (result is null)
+        {
+            importMessage = "Import completed, but no result was returned.";
+            return;
+        }
+
+// Start with the basic counts
+        var totalRows   = result.TotalRows;
+        var imported    = result.ImportedCount;
+        var failed      = result.FailedCount;
+
+// Default counts
+        var duplicateCount   = 0;
+        var ipConflictCount  = 0;
+
+// Look at error messages and categorize
+        if (result.Errors != null)
+        {
+            foreach (var error in result.Errors)
+            {
+                var msg = error.Message ?? string.Empty;
+
+                // Anything we purposely marked as "Duplicate ..."
+                if (msg.Contains("Duplicate of existing active server", StringComparison.OrdinalIgnoreCase) ||
+                    msg.Contains("Duplicate of another row in this import", StringComparison.OrdinalIgnoreCase))
+                {
+                    duplicateCount++;
+                }
+                // Anything we purposely marked as an IP conflict
+                else if (msg.Contains("already in use by active server", StringComparison.OrdinalIgnoreCase))
+                {
+                    ipConflictCount++;
+                }
+            }
+
+            importErrors = result.Errors;
+        }
+
+// Build a friendly summary line
+        importMessage =
+            $"Import complete. Imported {imported} of {totalRows} rows. " +
+            $"Failed rows: {failed}. " +
+            $"Skipped duplicates: {duplicateCount}. " +
+            $"IP conflicts: {ipConflictCount}.";
+
+
+        /*var result = await response.Content.ReadFromJsonAsync<ServerImportResultView>();
 
         if (result is null)
         {
@@ -691,7 +790,7 @@ else
                     Message = e.Message
                 })
                 .ToList();
-        }
+        }*/
 
         // Refresh the grid
         await LoadServersAsync();
@@ -752,11 +851,10 @@ private class ServerImportRowErrorView
         public string Message { get; set; } = string.Empty;
     }
 
-    private List<ImportError> importErrors = new();
+    //private List<ImportError> importErrors = new();
+    private List<ServerImportRowErrorView> importErrors = new();
+
 }
-
-
-
 
 
 @*  Pre-search implementation Servers.razor
