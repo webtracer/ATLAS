@@ -1,0 +1,383 @@
+@page "/vcenters/{vcenterId}/analysis"
+@using System.Net.Http.Json
+@using System.Linq
+@using Amdocs.Atlas.Core.DTOs
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>vSphere AI Analysis</PageTitle>
+
+<h3>vSphere AI Analysis</h3>
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <strong>Success!</strong> @successMessage
+        <button type="button" class="btn-close" @onclick="() => successMessage = null" aria-label="Close"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <strong>Error:</strong>
+        <div class="mt-2" style="white-space: pre-wrap; word-wrap: break-word;">@errorMessage</div>
+        <button type="button" class="btn-close" @onclick="() => errorMessage = null" aria-label="Close"></button>
+    </div>
+}
+
+@if (isLoading && isAnalyzing)
+{
+    <div class="text-center p-4">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">@loadingMessage</p>
+    </div>
+}
+
+@if (!isAnalyzing)
+{
+    <!-- Credentials Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>vCenter Connection</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">
+                Enter your vSphere credentials. Credentials are not stored and are only used for this session.
+            </p>
+
+            <div class="mb-3">
+                <label class="form-label">Username</label>
+                <input type="text" class="form-control" @bind="username" placeholder="administrator@vsphere.local" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-control" @bind="password" />
+            </div>
+
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <button type="button"
+                        class="btn btn-primary"
+                        @onclick="IncrementClick">
+                    Test Connection (Simple Click Test)
+                </button>
+
+                <button type="button"
+                        class="btn btn-secondary"
+                        @onclick="TestConnection"
+                        disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    }
+                    Test Connection (Full Method)
+                </button>
+
+                <span class="text-muted">(Clicks: @clickCount, Loading: @isLoading.ToString().ToLower())</span>
+
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <span class="text-success fw-bold">✓ Connected</span>
+                }
+                else if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <span class="text-danger fw-bold">✗ Connection Failed</span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Cluster Selection -->
+    @if (clusters.Any())
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Select Cluster</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Cluster</label>
+                    <select class="form-select" @bind="selectedCluster">
+                        <option value="">-- All Clusters (General Analysis) --</option>
+                        @foreach (var cluster in clusters)
+                        {
+                            <option value="@cluster">@cluster</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Analysis Type Selection -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Analysis Type</h5>
+        </div>
+        <div class="card-body">
+            <div class="btn-group" role="group">
+                <input type="radio" class="btn-check" name="analysisType" id="type-performance"
+                       value="performance" checked="@(analysisType == "performance")" @onchange="@((ChangeEventArgs e) => { analysisType = "performance"; })" />
+                <label class="btn btn-outline-primary" for="type-performance">Performance</label>
+
+                <input type="radio" class="btn-check" name="analysisType" id="type-capacity"
+                       value="capacity" checked="@(analysisType == "capacity")" @onchange="@((ChangeEventArgs e) => { analysisType = "capacity"; })" />
+                <label class="btn btn-outline-primary" for="type-capacity">Capacity</label>
+
+                <input type="radio" class="btn-check" name="analysisType" id="type-logs"
+                       value="logs" checked="@(analysisType == "logs")" @onchange="@((ChangeEventArgs e) => { analysisType = "logs"; })" />
+                <label class="btn btn-outline-primary" for="type-logs">Logs</label>
+
+                <input type="radio" class="btn-check" name="analysisType" id="type-general"
+                       value="general" checked="@(analysisType == "general")" @onchange="@((ChangeEventArgs e) => { analysisType = "general"; })" />
+                <label class="btn btn-outline-primary" for="type-general">General</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Run Analysis Button -->
+    <div class="mb-4">
+        <button type="button"
+                class="btn btn-success btn-lg"
+                @onclick="RunAnalysis"
+                disabled="@(string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password) || _vcenterIdValue <= 0)">
+            <i class="bi bi-play-circle"></i> Run AI Analysis
+        </button>
+        @if (_vcenterIdValue <= 0)
+        {
+            <div class="text-muted mt-2">vCenter ID is invalid or missing in the URL.</div>
+        }
+    </div>
+}
+
+<!-- Analysis Results -->
+@if (analysisResult != null && analysisResult.Success)
+{
+    <div class="card mt-4">
+        <div class="card-header bg-success text-white">
+            <h5>AI Analysis Results</h5>
+            <small>
+                Analysis Type: @analysisResult.AnalysisType |
+                vCenter: @analysisResult.VcenterName |
+                Cluster: @analysisResult.ClusterName
+            </small>
+        </div>
+        <div class="card-body">
+            <div class="mb-4">
+                <h6>AI Analysis</h6>
+                <div class="alert alert-info" style="white-space: pre-wrap;">@analysisResult.AiAnalysis</div>
+            </div>
+
+            @if (analysisResult.Recommendations.Any())
+            {
+                <div class="mb-4">
+                    <h6>Recommendations</h6>
+                    <ul class="list-group">
+                        @foreach (var rec in analysisResult.Recommendations)
+                        {
+                            <li class="list-group-item">@rec</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            @if (analysisResult.Issues.Any())
+            {
+                <div class="mb-4">
+                    <h6>Issues Detected</h6>
+                    <ul class="list-group">
+                        @foreach (var issue in analysisResult.Issues)
+                        {
+                            <li class="list-group-item list-group-item-warning">@issue</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <div class="mt-3">
+                <small class="text-muted">
+                    Analysis completed at: @analysisResult.AnalysisTimestamp.ToString("yyyy-MM-dd HH:mm:ss UTC")
+                </small>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string? VcenterId { get; set; }
+
+    private int _vcenterIdValue;
+
+    private string username = string.Empty;
+    private string password = string.Empty;
+
+    private string selectedCluster = string.Empty;
+    private string analysisType = "general";
+
+    private List<string> clusters = new();
+    private VSphereAnalysisResult? analysisResult;
+
+    private bool isLoading = false;
+    private bool isAnalyzing = false;
+    private string loadingMessage = "Loading...";
+
+    private string? errorMessage;
+    private string? successMessage;
+
+    private int clickCount = 0;
+
+    private HttpClient CreateClient() => HttpClientFactory.CreateClient("AtlasApi");
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrWhiteSpace(VcenterId) && int.TryParse(VcenterId, out var id))
+        {
+            _vcenterIdValue = id;
+            errorMessage = null;
+        }
+        else
+        {
+            _vcenterIdValue = 0;
+            errorMessage = "Invalid vCenter ID in URL.";
+            successMessage = null;
+        }
+        StateHasChanged();
+    }
+
+    private void IncrementClick()
+    {
+        clickCount++;
+        // No StateHasChanged needed; Blazor re-renders after event handlers automatically.
+    }
+
+    private async Task TestConnection()
+    {
+        clickCount++;
+
+        errorMessage = null;
+        successMessage = null;
+        clusters.Clear();
+
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+        {
+            errorMessage = "Please enter username and password.";
+            StateHasChanged();
+            return;
+        }
+
+        if (_vcenterIdValue <= 0)
+        {
+            errorMessage = "Invalid vCenter ID. Please check the URL.";
+            StateHasChanged();
+            return;
+        }
+
+        isLoading = true;
+        loadingMessage = "Testing connection...";
+
+        try
+        {
+            var client = CreateClient();
+
+            // API expects { Username, Password }
+            var credentials = new { Username = username, Password = password };
+
+            var url = $"api/vsphereanalysis/vcenters/{_vcenterIdValue}/clusters";
+            var response = await client.PostAsJsonAsync(url, credentials);
+
+            if (response.IsSuccessStatusCode)
+            {
+                clusters = await response.Content.ReadFromJsonAsync<List<string>>() ?? new();
+
+                successMessage = clusters.Any()
+                    ? $"Connection successful! Found {clusters.Count} cluster(s)."
+                    : "Connection successful! No clusters found.";
+            }
+            else
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Connection failed (HTTP {(int)response.StatusCode} {response.StatusCode}): {body}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error testing connection: {ex}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RunAnalysis()
+    {
+        errorMessage = null;
+        successMessage = null;
+        analysisResult = null;
+
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+        {
+            errorMessage = "Please enter username and password.";
+            StateHasChanged();
+            return;
+        }
+
+        if (_vcenterIdValue <= 0)
+        {
+            errorMessage = "Invalid vCenter ID. Please check the URL.";
+            StateHasChanged();
+            return;
+        }
+
+        isAnalyzing = true;
+        isLoading = true;
+        loadingMessage = "Running AI analysis... This may take a few moments.";
+
+        try
+        {
+            var client = CreateClient();
+
+            var request = new VSphereAnalysisRequest
+            {
+                VcenterId = _vcenterIdValue,
+                Username = username,
+                Password = password,
+                ClusterName = string.IsNullOrWhiteSpace(selectedCluster) ? null : selectedCluster,
+                AnalysisType = analysisType
+            };
+
+            var response = await client.PostAsJsonAsync("api/vsphereanalysis/analyze", request);
+
+            if (response.IsSuccessStatusCode)
+            {
+                analysisResult = await response.Content.ReadFromJsonAsync<VSphereAnalysisResult>();
+
+                if (analysisResult != null && !analysisResult.Success)
+                {
+                    errorMessage = analysisResult.ErrorMessage ?? "Analysis failed.";
+                }
+            }
+            else
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Analysis failed (HTTP {(int)response.StatusCode} {response.StatusCode}): {body}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error running analysis: {ex}";
+        }
+        finally
+        {
+            isLoading = false;
+            isAnalyzing = false;
+            StateHasChanged();
+        }
+    }
+}
