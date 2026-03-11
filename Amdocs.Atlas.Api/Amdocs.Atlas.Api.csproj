@@ -9,6 +9,7 @@
     <ItemGroup>
         <PackageReference Include="AutoMapper" Version="16.0.0-beta-1" />
         <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
+        <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
         <PackageReference Include="ClosedXML" Version="0.105.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.3" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.11" />
@@ -23,6 +24,10 @@
     <ItemGroup>
       <ProjectReference Include="..\Amdocs.Atlas.Core\Amdocs.Atlas.Core.csproj" />
       <ProjectReference Include="..\Amdocs.Atlas.Data\Amdocs.Atlas.Data.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.0" />
     </ItemGroup>
 
 </Project>

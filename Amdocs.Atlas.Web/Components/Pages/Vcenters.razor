@@ -2,6 +2,7 @@
 @using System.Net.Http.Json
 @using Amdocs.Atlas.Core.Entities
 @inject IHttpClientFactory HttpClientFactory
+@inject NavigationManager NavigationManager
 
 @* TODO - Add Passphrase to this page *@
 
@@ -41,7 +42,7 @@ else
                 <th>IP Address</th>
                 <th>Passphrase</th>
                 <th>Description</th>
-                @* other columns you already have *@
+                <th style="width: 150px;">Actions</th>
             </tr>
             </thead>
             <tbody>
@@ -64,6 +65,14 @@ else
                     <td>@vcenter.IpAddress</td>
                     <td>@vcenter.Passphrase</td>
                     <td>@vcenter.Description</td>
+                    <td>
+                        <button type="button"
+                                class="btn btn-sm btn-success"
+                                @onclick="() => NavigateToAnalysis(vcenter.VcenterId)"
+                                title="Run AI Analysis">
+                            <span class="oi oi-graph" aria-hidden="true"></span> AI Analysis
+                        </button>
+                    </td>
                 </tr>
             }
             </tbody>
@@ -86,6 +95,34 @@ else
                 <div class="mb-3">
                     <label class="form-label">IP Address</label>
                     <InputText class="form-control" @bind-Value="editModel.IpAddress" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Host (FQDN or IP for vSphere connection)</label>
+                    <InputText class="form-control" @bind-Value="editModel.Host" placeholder="Leave empty to use IP Address" />
+                    <small class="form-text text-muted">FQDN or IP address for vSphere REST API connections. If empty, IP Address will be used.</small>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Port</label>
+                            <InputNumber class="form-control" @bind-Value="editModel.Port" />
+                            <small class="form-text text-muted">Default: 443</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check mb-3 mt-4">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="sslVerifyCheck"
+                                   @bind="editModel.SslVerify" />
+                            <label class="form-check-label" for="sslVerifyCheck">
+                                SSL Verify
+                            </label>
+                            <small class="form-text text-muted d-block">Uncheck for self-signed certificates</small>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="mb-3">
@@ -194,7 +231,9 @@ else
         editModel = new Vcenter
         {
             IsActive = true,
-            Passphrase = string.Empty
+            Passphrase = string.Empty,
+            Port = 443,
+            SslVerify = false
         };
     }
 
@@ -209,6 +248,9 @@ else
             VcenterId   = vc.VcenterId,
             Name        = vc.Name,
             IpAddress   = vc.IpAddress,
+            Host        = vc.Host,
+            Port        = vc.Port,
+            SslVerify   = vc.SslVerify,
             Passphrase  = vc.Passphrase,
             Description = vc.Description,
             IsActive    = vc.IsActive,
@@ -315,6 +357,11 @@ else
         }
 
         return $"https://{ip}";
+    }
+
+    private void NavigateToAnalysis(int vcenterId)
+    {
+        NavigationManager.NavigateTo($"/vcenters/{vcenterId}/analysis");
     }
 
 }

@@ -53,6 +53,16 @@ public class VcentersController : ControllerBase
         vcenter.VcenterId = 0;
         vcenter.CreatedAt = DateTime.UtcNow;
         vcenter.UpdatedAt = DateTime.UtcNow;
+        
+        // Set defaults for new fields if not provided
+        if (string.IsNullOrEmpty(vcenter.Host))
+        {
+            vcenter.Host = vcenter.IpAddress; // Default Host to IpAddress if not set
+        }
+        if (vcenter.Port == 0)
+        {
+            vcenter.Port = 443; // Default port
+        }
 
         _db.Vcenters.Add(vcenter);
         await _db.SaveChangesAsync();
@@ -80,6 +90,9 @@ public class VcentersController : ControllerBase
         // copy scalar values
         existing.Name = updated.Name;
         existing.IpAddress = updated.IpAddress;
+        existing.Host = updated.Host;
+        existing.Port = updated.Port;
+        existing.SslVerify = updated.SslVerify;
         existing.Description = updated.Description;
         existing.IsActive = updated.IsActive;
         existing.UpdatedAt = DateTime.UtcNow;

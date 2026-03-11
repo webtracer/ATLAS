@@ -6,6 +6,7 @@
 @using System.Linq
 @inject IHttpClientFactory HttpClientFactory
 @using Microsoft.AspNetCore.Components.Forms;
+@implements IDisposable
 
 <h3>Servers</h3>
 
@@ -374,6 +375,8 @@ else
     private Server editModel = new();
 
     private Server? deleteCandidate;
+    private CancellationTokenSource? _cancellationTokenSource;
+    private bool _disposed = false;
 
     // filter/search state (simple fields)
     private string? searchText;
@@ -452,6 +455,11 @@ else
         }
     }
 
+    protected override void OnInitialized()
+    {
+        _cancellationTokenSource = new CancellationTokenSource();
+    }
+
     protected override async Task OnInitializedAsync()
     {
         var client = CreateClient();
@@ -461,28 +469,97 @@ else
         await LoadServersAsync();
     }
 
+    protected override bool ShouldRender()
+    {
+        // Prevent rendering if component is disposed
+        if (_disposed)
+            return false;
+        
+        return base.ShouldRender();
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        _cancellationTokenSource?.Cancel();
+        _cancellationTokenSource?.Dispose();
+    }
+
+    private async Task SafeStateHasChanged()
+    {
+        if (_disposed)
+            return;
+
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Component was disposed, ignore
+            _disposed = true;
+        }
+        catch (InvalidOperationException)
+        {
+            // Component is no longer attached to a renderer, ignore
+            _disposed = true;
+        }
+        catch
+        {
+            // Catch any other exceptions that might occur during render
+            // and mark as disposed to prevent further attempts
+            _disposed = true;
+        }
+    }
+
 
     private async Task LoadLookupsAsync()
     {
+        if (_cancellationTokenSource?.IsCancellationRequested == true)
+            return;
+
         try
         {
             var client = CreateClient();
 
-            var envResult = await client.GetFromJsonAsync<List<Environment>>("api/environments");
+            var envResult = await client.GetFromJsonAsync<List<Environment>>("api/environments", _cancellationTokenSource?.Token ?? CancellationToken.None);
+            
+            if (_cancellationTokenSource?.IsCancellationRequested == true)
+                return;
+
             environments = envResult ?? new List<Environment>();
 
-            var roleResult = await client.GetFromJsonAsync<List<RoleDto>>("api/roles");
+            var roleResult = await client.GetFromJsonAsync<List<RoleDto>>("api/roles", _cancellationTokenSource?.Token ?? CancellationToken.None);
+            
+            if (_cancellationTokenSource?.IsCancellationRequested == true)
+                return;
+
             roles = roleResult ?? new List<RoleDto>();
 
+            var customerResult = await client.GetFromJsonAsync<List<Customer>>("api/customers", _cancellationTokenSource?.Token ?? CancellationToken.None);
+            
+            if (_cancellationTokenSource?.IsCancellationRequested == true)
+                return;
 
-            var customerResult = await client.GetFromJsonAsync<List<Customer>>("api/customers");
             customers = customerResult ?? new List<Customer>();
             
-            var vcenterResult = await client.GetFromJsonAsync<List<Vcenter>>("api/vcenters");
+            var vcenterResult = await client.GetFromJsonAsync<List<Vcenter>>("api/vcenters", _cancellationTokenSource?.Token ?? CancellationToken.None);
+            
+            if (_cancellationTokenSource?.IsCancellationRequested == true)
+                return;
+
             vcenters = vcenterResult ?? new List<Vcenter>();
+        }
+        catch (OperationCanceledException)
+        {
+            // Component was disposed, ignore
+            return;
         }
         catch (Exception ex)
         {
+            if (_cancellationTokenSource?.IsCancellationRequested == true)
+                return;
+
             loadError = $"Failed to load lookups: {ex.Message}";
         }
     }
@@ -491,25 +568,45 @@ else
 
     private async Task LoadServersAsync()
     {
+        if (_disposed || _cancellationTokenSource?.IsCancellationRequested == true)
+            return;
+
         isLoading = true;
         loadError = null;
+        await SafeStateHasChanged();
 
         try
         {
             var client = CreateClient();
-            var result = await client.GetFromJsonAsync<List<Server>>("api/servers");
+            var result = await client.GetFromJsonAsync<List<Server>>("api/servers", _cancellationTokenSource?.Token ?? CancellationToken.None);
+            
+            if (_cancellationTokenSource?.IsCancellationRequested == true)
+                return;
+
             allServers = result ?? new List<Server>();
 
             ApplyFilters();
         }
+        catch (OperationCanceledException)
+        {
+            // Component was disposed, ignore
+            return;
+        }
         catch (Exception ex)
         {
+            if (_cancellationTokenSource?.IsCancellationRequested == true)
+                return;
+
             loadError = ex.Message;
             servers = new List<Server>();
         }
         finally
         {
-            isLoading = false;
+            if (_cancellationTokenSource?.IsCancellationRequested == false && !_disposed)
+            {
+                isLoading = false;
+                await SafeStateHasChanged();
+            }
         }
     }
 
@@ -566,11 +663,15 @@ else
     
     private async Task SaveAsync()
     {
+        if (_disposed || _cancellationTokenSource?.IsCancellationRequested == true)
+            return;
+
         try
         {
             if (editModel.RoleId == 0)
             {
                 loadError = "Please select a role before saving.";
+                await SafeStateHasChanged();
                 return;
             }
             
@@ -579,21 +680,29 @@ else
 
             if (isCreating)
             {
-                response = await client.PostAsJsonAsync("api/servers", editModel);
+                response = await client.PostAsJsonAsync("api/servers", editModel, _cancellationTokenSource?.Token ?? CancellationToken.None);
             }
             else if (isEditing)
             {
-                response = await client.PutAsJsonAsync($"api/servers/{editModel.ServerId}", editModel);
+                response = await client.PutAsJsonAsync($"api/servers/{editModel.ServerId}", editModel, _cancellationTokenSource?.Token ?? CancellationToken.None);
             }
             else
             {
                 return;
             }
 
+            if (_cancellationTokenSource?.IsCancellationRequested == true)
+                return;
+
             if (!response.IsSuccessStatusCode)
             {
-                var content = await response.Content.ReadAsStringAsync();
+                var content = await response.Content.ReadAsStringAsync(_cancellationTokenSource?.Token ?? CancellationToken.None);
+                
+                if (_cancellationTokenSource?.IsCancellationRequested == true)
+                    return;
+
                 loadError = $"Save failed ({(int)response.StatusCode} {response.StatusCode}): {content}";
+                await SafeStateHasChanged();
                 return;
             }
 
@@ -603,9 +712,18 @@ else
 
             await LoadServersAsync();
         }
+        catch (OperationCanceledException)
+        {
+            // Component was disposed, ignore
+            return;
+        }
         catch (Exception ex)
         {
+            if (_cancellationTokenSource?.IsCancellationRequested == true)
+                return;
+
             loadError = ex.Message;
+            await SafeStateHasChanged();
         }
     }
 
@@ -742,15 +860,20 @@ else
     
     private async Task ImportServersAsync()
 {
+    if (_disposed || _cancellationTokenSource?.IsCancellationRequested == true)
+        return;
+
     if (importFile is null)
     {
         importMessage = "Please select an Excel file first.";
+        await SafeStateHasChanged();
         return;
     }
 
     isImporting = true;
     importMessage = null;
     importErrors.Clear();
+    await SafeStateHasChanged();
 
     try
     {
@@ -765,20 +888,32 @@ else
 
         content.Add(fileContent, "file", importFile.Name);
 
-        var response = await client.PostAsync("api/servers/import", content);
+        var response = await client.PostAsync("api/servers/import", content, _cancellationTokenSource?.Token ?? CancellationToken.None);
+
+        if (_cancellationTokenSource?.IsCancellationRequested == true)
+            return;
 
         if (!response.IsSuccessStatusCode)
         {
-            var errorText = await response.Content.ReadAsStringAsync();
+            var errorText = await response.Content.ReadAsStringAsync(_cancellationTokenSource?.Token ?? CancellationToken.None);
+            
+            if (_cancellationTokenSource?.IsCancellationRequested == true)
+                return;
+
             importMessage = $"Import failed ({(int)response.StatusCode} {response.StatusCode}): {errorText}";
+            await SafeStateHasChanged();
             return;
         }
         
-        var result = await response.Content.ReadFromJsonAsync<ServerImportResultView>();
+        var result = await response.Content.ReadFromJsonAsync<ServerImportResultView>(_cancellationTokenSource?.Token ?? CancellationToken.None);
+
+        if (_cancellationTokenSource?.IsCancellationRequested == true)
+            return;
 
         if (result is null)
         {
             importMessage = "Import completed, but no result was returned.";
+            await SafeStateHasChanged();
             return;
         }
 
@@ -821,39 +956,29 @@ else
             $"Skipped duplicates: {duplicateCount}. " +
             $"IP conflicts: {ipConflictCount}.";
 
-
-        /*var result = await response.Content.ReadFromJsonAsync<ServerImportResultView>();
-
-        if (result is null)
-        {
-            importMessage = "Import completed, but no result was returned.";
-            return;
-        }
-
-        importMessage = $"Import completed. Imported {result.ImportedCount} of {result.TotalRows} rows. " +
-                        $"Failed rows: {result.FailedCount}.";
-
-        if (result.Errors != null)
-        {
-            importErrors = result.Errors
-                .Select(e => new ImportError
-                {
-                    RowNumber = e.RowNumber,
-                    Message = e.Message
-                })
-                .ToList();
-        }*/
-
         // Refresh the grid
         await LoadServersAsync();
     }
+    catch (OperationCanceledException)
+    {
+        // Component was disposed, ignore
+        return;
+    }
     catch (Exception ex)
     {
+        if (_cancellationTokenSource?.IsCancellationRequested == true)
+            return;
+
         importMessage = $"Unexpected error during import: {ex.Message}";
+        await SafeStateHasChanged();
     }
     finally
     {
-        isImporting = false;
+        if (_cancellationTokenSource?.IsCancellationRequested == false && !_disposed)
+        {
+            isImporting = false;
+            await SafeStateHasChanged();
+        }
     }
 }
 
